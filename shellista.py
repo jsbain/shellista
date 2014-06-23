@@ -435,6 +435,10 @@ class Shell(cmd.Cmd):
 
 
 		def git_push(args):
+			git_p(args,porcelain.push)
+		def git_pull(args):
+			git_p(args,porcelain.pull)
+		def git_p(args,fcn):
 			import argparse
 			parser = argparse.ArgumentParser(prog='git push'
 											 , usage='git push [http(s)://<remote repo>] [-u username[:password]]'
@@ -453,7 +457,7 @@ class Shell(cmd.Cmd):
 
 			branch_name = os.path.join('refs','heads', repo.active_branch)  #'refs/heads/%s' % repo.active_branch
 
-			print "Attempting to push to: {0}, branch: {1}".format(result.url, branch_name)
+			print "Attempting to {2} to: {0}, branch: {1}".format(result.url, branch_name,fcn.__name__)
 			
 			keychainservice = 'shellista.git.'+urlparse.urlparse(result.url).netloc
 
@@ -475,7 +479,7 @@ class Shell(cmd.Cmd):
 			print user
 			opener = auth_urllib2_opener(None, result.url, user, pw)
 
-			print porcelain.push(repo.repo, result.url, branch_name, opener=opener)
+			print fcn(repo.repo, result.url, branch_name, opener=opener)
 			keychain.set_password(keychainservice,user,pw)
 
 			
@@ -517,7 +521,8 @@ class Shell(cmd.Cmd):
 		,'clone': git_clone
 		,'modified': git_modified
 		,'log': git_log
-		,'push': git_push
+		,'push': git_p
+		,'pull': git_p
 		,'branch': git_branch
 		,'checkout': git_checkout
 		,'remote': git_remote

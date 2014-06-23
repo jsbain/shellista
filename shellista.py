@@ -521,8 +521,8 @@ class Shell(cmd.Cmd):
 		,'clone': git_clone
 		,'modified': git_modified
 		,'log': git_log
-		,'push': git_p
-		,'pull': git_p
+		,'push': git_push
+		,'pull': git_pull
 		,'branch': git_branch
 		,'checkout': git_checkout
 		,'remote': git_remote

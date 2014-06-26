@@ -1,4 +1,5 @@
-import os, cmd, sys, glob, os.path, shutil, zipfile, tarfile, gzip, urllib2, traceback, getpass, urlparse, keychain, console
+
+import os, cmd, sys, glob, os.path, shutil, zipfile, tarfile, gzip, urllib2, traceback, getpass, urlparse, keychain, console, bashhistory
 
 try:
 	import ui
@@ -7,7 +8,9 @@ except ImportError:
 
 #Option to install required modules as a subdirectory of the shellista.py module
 #or install in the user site-packages folder.
-LOCAL_SITE_PACKAGES=True
+LOCAL_SITE_PACKAGES=False
+#use UI if available ( for testing non-ui behavior)
+USE_UI=True
 
 # Credits
 #
@@ -57,8 +60,11 @@ LOCAL_SITE_PACKAGES=True
 # - untgz - a convenience wrapper to untar and ungzip at the same time
 #  - Also ripped @mark_tully's wget - thanks Mark!
 # - Simple Python sub-shell by typing 'shell', 'python', or '!'
-#  - Running a file directly doesn't work (e.g. 'python somefile.py'), though I tried
+#  - Running a file directly works (e.g. 'python somefile.py'), just not scene classes
 #  - Single-line commands only
+# - Simple bash-like history expansion: !! last command, !N Nth command, !-N 
+#      nth most recent command.  !$,!-N$, !N$ last argument of the specified command, and !*, etc all arguments of command
+#	- history and tab completion
 
 
 
@@ -310,6 +316,7 @@ class Shell(cmd.Cmd):
 		self._bash = BetterParser()
 		self._bash.env_vars['$HOME']   = os.path.expanduser('~/Documents')
 		self.did_quit = False
+		self.bashhistory=bashhistory.BashHistory()
 	def bash(self, argstr):
 		try:
 			return self._bash.parse('. ' + argstr)[1:]
@@ -479,7 +486,7 @@ class Shell(cmd.Cmd):
 			keychain.set_password(keychainservice,user,pw)
 
 			
-		#	TODO  handle auth failure, allow user to push with no password
+		#	TODO  handle auth failure
 
 		def git_modified(args):
 			repo = Gittle('.')
@@ -548,9 +555,9 @@ class Shell(cmd.Cmd):
 			cmd = commands.get(args[0] if len(args) > 0 else 'help','help')
 			cmd(args[1:])
 		except:
-			#import traceback
-			#traceback.print_exception(sys.exc_type, sys.exc_value, sys.exc_traceback)
-			#traceback.print_tb(sys.exc_traceback)
+			import traceback
+			traceback.print_exception(sys.exc_type, sys.exc_value, sys.exc_traceback)
+			traceback.print_tb(sys.exc_traceback)
 			print 'Error: {0}'.format(sys.exc_value)
 
 
@@ -1088,9 +1095,15 @@ class Shell(cmd.Cmd):
 		"""exit shell"""
 		self.did_quit = True
 	def postcmd(self,stop,line):
+		self.bashhistory.append(self.bash(line))
 		return self.did_quit
 	def emptyline(self):
 		pass
+	def do_history(self,line):
+		if ui and USE_UI:
+			self.onecmd(self.bashhistory.history_popup())
+		else:
+			self.onecmd(self.bashhistory.history())
 	def onecmd(self, line):
 		try:
 			cmd.Cmd.onecmd(self, line)
@@ -1106,7 +1119,7 @@ class Shell(cmd.Cmd):
 			else:
 				newline=_tabcompl(line,self._bash)
 			line=newline+raw_input('+++' + newline)
-		print '>' + line
+		line= self.bashhistory.history_replace(line)
 		return line
 
 def _tabcompl(line,bash):
